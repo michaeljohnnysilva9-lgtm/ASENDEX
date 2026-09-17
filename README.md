@@ -121,6 +121,15 @@ ASENDEX/
 
 ASENDEX is experimental testnet software. Contracts, addresses, liquidity, RPC endpoints and chain state may change or be reset during Asentum testnet development.
 
+## Builder evidence
+
+ASENDEX keeps a public builder log with reproducible testnet observations, incidents, limitations and upstream references:
+
+- [Builder Log](docs/builder-log.md)
+- [GitHub Issues](https://github.com/michaeljohnnysilva9-lgtm/ASENDEX/issues)
+
+The goal is to make technical contribution independently reviewable rather than relying on self-reported activity.
+
 ## For the Asentum team and builders
 
 The goal of publishing ASENDEX is transparency and collaboration. Successful transactions, reproducible failures, RPC behavior, network observations and integration issues should be documented so they can be independently reviewed.
