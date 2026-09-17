@@ -1,0 +1,1 @@
+{"name":"asendex","version":"0.1.0","private":false,"description":"Independent community DEX and network observatory for the Asentum testnet","scripts":{"dev":"vercel dev"},"engines":{"node":">=20"}}
