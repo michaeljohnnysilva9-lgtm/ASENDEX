@@ -1,15 +1,16 @@
-const RPC = process.env.ASENTUM_RPC_URL || 'https://testnet.asentum.com';
+const ASENTUM = process.env.ASENTUM_RPC_URL || 'https://testnet.asentum.com';
+const EXPLORER_RPC = process.env.ASENTUM_EXPLORER_RPC_URL || 'https://explorer.asentum.com/rpc';
 const PAIRS = process.env.AURAS_PAIRS_URL || 'https://auras.asentum.com/api/pairs';
 
 async function jsonRpc(method, params = []) {
-  const r = await fetch(RPC, {
+  const r = await fetch(EXPLORER_RPC, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'user-agent': 'ASENDEX-Beta/4.0' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
-  if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`Explorer RPC HTTP ${r.status}`);
   const j = await r.json();
-  if (j.error) throw new Error(j.error.message || 'RPC error');
+  if (j.error) throw new Error(j.error.message || 'Explorer RPC error');
   return j.result;
 }
 
@@ -44,7 +45,7 @@ export default async function handler(req, res) {
     }
 
     if (mode === 'view') {
-      const data = await getJson(`${RPC}/view`, {
+      const data = await getJson(`${ASENTUM}/view`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ contract: src.contract, method: src.method, args: src.args || [] }),
@@ -54,12 +55,15 @@ export default async function handler(req, res) {
     }
 
     if (mode === 'balance') {
-      const data = await getJson(`${RPC}/balance/${encodeURIComponent(src.address)}`, { cache: 'no-store' });
+      const data = await getJson(`${ASENTUM}/balance/${encodeURIComponent(src.address)}`, { cache: 'no-store' });
       return res.status(200).json({ ok: true, balance: String(data?.balance ?? '0') });
     }
 
     if (mode === 'receipt') {
-      const r = await fetch(`${RPC}/receipts/${encodeURIComponent(src.txHash)}`, { cache: 'no-store', headers: { 'user-agent': 'ASENDEX-Beta/4.0' } });
+      const r = await fetch(`${ASENTUM}/receipts/${encodeURIComponent(src.txHash)}`, {
+        cache: 'no-store',
+        headers: { 'user-agent': 'ASENDEX-Beta/4.0' },
+      });
       if (r.status === 404) return res.status(200).json({ ok: true, receipt: null });
       const text = await r.text();
       let data;
