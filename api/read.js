@@ -75,7 +75,22 @@ export default async function handler(req, res) {
 
     if (mode === 'network') {
       const [cid, bn] = await Promise.all([jsonRpc('eth_chainId'), jsonRpc('eth_blockNumber')]);
-      return res.status(200).json({ ok: true, chainId: parseInt(cid, 16), blockNumber: parseInt(bn, 16) });
+      const block = await jsonRpc('eth_getBlockByNumber', [bn, false]);
+      const blockTimestamp = block?.timestamp ? parseInt(block.timestamp, 16) : null;
+      const now = Math.floor(Date.now() / 1000);
+      const blockAgeSeconds = blockTimestamp ? Math.max(0, now - blockTimestamp) : null;
+      const stalled = blockAgeSeconds != null ? blockAgeSeconds > 120 : null;
+      return res.status(200).json({
+        ok: true,
+        chainId: parseInt(cid, 16),
+        blockNumber: parseInt(bn, 16),
+        blockHash: block?.hash || null,
+        parentHash: block?.parentHash || null,
+        blockTimestamp,
+        blockAgeSeconds,
+        stalled,
+        stallThresholdSeconds: 120,
+      });
     }
 
     if (mode === 'pairs') {
