@@ -1,36 +1,65 @@
 # ASENDEX
 
-**Community DEX & Network Observatory for the Asentum testnet**
+**Community DeFi interface & network observatory for the Asentum testnet**
 
 [![Network](https://img.shields.io/badge/Asentum-Testnet-blue)](https://www.asentum.com/)
 [![Chain](https://img.shields.io/badge/Chain-1423-6f42c1)](https://explorer.asentum.com/)
 [![Status](https://img.shields.io/badge/status-experimental-orange)](#project-status)
 [![Community](https://img.shields.io/badge/community-built-brightgreen)](#independence--disclaimer)
 
-ASENDEX is an independent, community-built testnet project created to experiment with decentralized exchange infrastructure on Asentum and to provide transparent network observability.
+ASENDEX is an independent, community-built testnet project for experimenting with decentralized exchange UX, Auras AMM routing, transaction verification and independent Asentum network observability.
 
-> **Independent project:** ASENDEX is not an official Asentum product and does not claim endorsement by Asentum or its team.
+> **Independent project:** ASENDEX is not an official Asentum product and does not claim endorsement, partnership or sponsorship by Asentum or its team.
 
 ## Live application
 
 **ASENDEX Testnet:** https://asendex-testnet-beta.vercel.app/
 
-## What ASENDEX is building
+## Current beta features
 
-- Testnet token swaps and AMM experimentation
-- Liquidity and transaction testing
-- Independent Asentum network observability
-- Block-production monitoring
-- RPC availability and latency monitoring
-- Fork/reorg detection through block-hash comparison
-- Validator/committee visibility when exposed by public network interfaces
-- Reproducible test results for builders and the community
+- Live testnet swaps routed through Auras AMM
+- Real wallet balances for ASE and discovered testnet tokens
+- Insufficient-balance protection
+- Slippage and minimum-received protection
+- Estimated price impact and thin-liquidity warnings
+- Quote-expiry and price-movement guardrails
+- `CONFIRMED / REVERTED` receipt status
+- Transaction hash, block, gas and actual output display when verifiable
+- Local Activity history with receipt refresh
+- Public treasury disclosure and transparent ASENDEX fee flow
+- Independent chain/RPC observability
+
+## ASENDEX fee — testnet beta
+
+The current ASENDEX application fee is **0.10% (10 bps)**, denominated in native ASE.
+
+**Public treasury:**
+
+`ase16qnk8kgjajray9dltuauf8a7jzjtt0ul5rwqxm`
+
+The Auras pool fee is separate and is displayed independently.
+
+### Important: current beta is a two-step fee flow
+
+ASENDEX does **not** charge its fee before the swap. The swap is sent first and ASENDEX waits for the on-chain receipt. Only after a successful swap does the wallet request a second explicit approval for the 0.10% ASENDEX fee transfer.
+
+If the swap reverts, no ASENDEX fee is requested. If the user rejects the separate fee approval, the already-confirmed swap remains valid and the fee is recorded as unpaid in the local Activity view.
+
+This is intentionally transparent and non-atomic while an ASENDEX Router is being researched and tested. See [`docs/fees.md`](docs/fees.md).
+
+## Planned atomic router
+
+The intended production design is:
+
+`User → ASENDEX Router → Auras AMM → User`
+
+with the ASENDEX protocol fee sent to the public treasury only as part of a successful routed execution.
+
+ASENDEX will not claim this router is live until Asentum inter-contract calls, native ASE value forwarding and Auras integration have been verified on-chain under the current runtime.
 
 ## Network Observatory
 
-The planned ASENDEX Network Observatory is designed to verify network behavior independently of a single explorer frontend.
-
-It will monitor:
+ASENDEX Network Observatory is designed to verify network behavior independently of a single explorer frontend.
 
 | Signal | Purpose |
 | --- | --- |
@@ -49,42 +78,57 @@ When a metric cannot be independently obtained, ASENDEX should display **NOT PUB
 
 ## Verification philosophy
 
-A web explorer saying `LIVE` is not sufficient proof by itself. Stronger evidence comes from independent observations that agree with each other:
+A frontend saying `LIVE` is not sufficient proof by itself. Stronger evidence comes from observations that agree with each other:
 
-`RPC reachable → head advances → blocks have valid timestamps/hashes → independent endpoints agree → transactions settle → application state persists → validators/signatures are verifiable`
+`RPC reachable → head advances → blocks have valid timestamps/hashes → transactions settle → receipts confirm → application state persists`
 
-## Project status
+## Security model
 
-ASENDEX is experimental testnet software. Contracts, addresses, RPC endpoints and chain state may change or be reset during Asentum testnet development. Do not send mainnet assets or funds to testnet contracts.
+- ASENDEX never requests or stores private keys.
+- Every write is signed by the user's Asentum wallet.
+- The beta fee transfer requires an explicit wallet approval.
+- Testnet assets and contracts may be reset by the network.
+- ASENDEX is unaudited experimental software.
+- Do not send mainnet assets to testnet contracts or addresses expecting testnet behavior.
+
+See [`SECURITY.md`](SECURITY.md) for security reporting.
 
 ## Repository structure
 
 ```text
 ASENDEX/
 ├── README.md
+├── CHANGELOG.md
 ├── LICENSE
 ├── SECURITY.md
 ├── CONTRIBUTING.md
-├── docs/
-│   ├── architecture.md
-│   ├── asentum-network.md
-│   ├── network-observatory.md
-│   └── testnet-results.md
-├── app/                 # application source (to be imported/reconstructed)
-├── components/          # UI components
-├── lib/                 # RPC and monitoring logic
-├── contracts/           # testnet contracts when publishable
-└── tests/               # reproducible network/application tests
+├── api/
+│   └── read.js
+├── public/
+│   ├── index.html
+│   ├── app.js
+│   ├── network-observatory.html
+│   └── network-observatory.js
+└── docs/
+    ├── architecture.md
+    ├── asentum-network.md
+    ├── fees.md
+    ├── network-observatory.md
+    └── testnet-results.md
 ```
+
+## Project status
+
+ASENDEX is experimental testnet software. Contracts, addresses, liquidity, RPC endpoints and chain state may change or be reset during Asentum testnet development.
 
 ## For the Asentum team and builders
 
-The goal of publishing ASENDEX is transparency and collaboration. Network observations, reproducible failures, fork/reorg evidence, RPC behavior and successful test transactions can be documented here so that they can be independently reviewed.
+The goal of publishing ASENDEX is transparency and collaboration. Successful transactions, reproducible failures, RPC behavior, network observations and integration issues should be documented so they can be independently reviewed.
 
 Issues and pull requests are welcome for technical corrections and improvements.
 
 ## Independence & disclaimer
 
-ASENDEX is independently developed by a community participant. References to Asentum, ASE and related infrastructure identify the network being tested and do not imply partnership, sponsorship, endorsement or official status.
+ASENDEX is independently developed by a community participant. References to Asentum, ASE, Auras and related infrastructure identify the network and protocols being tested and do not imply partnership, sponsorship, endorsement or official status.
 
 Testnet software is inherently experimental. Nothing in this repository is financial advice.
