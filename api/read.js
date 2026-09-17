@@ -23,6 +23,45 @@ async function getJson(url, options = {}) {
   return j;
 }
 
+function sameAddress(value, candidates) {
+  const v = String(value || '').toLowerCase();
+  return !!v && candidates.some((x) => String(x || '').toLowerCase() === v);
+}
+
+async function recentAddressActivity(addresses, blockCount = 80) {
+  const latestHex = await jsonRpc('eth_blockNumber');
+  const latest = parseInt(latestHex, 16);
+  const count = Math.max(1, Math.min(Number(blockCount) || 80, 200));
+  const first = Math.max(0, latest - count + 1);
+  const found = [];
+
+  // Read in small batches so this remains a low-impact diagnostic endpoint.
+  for (let end = latest; end >= first; end -= 10) {
+    const start = Math.max(first, end - 9);
+    const nums = [];
+    for (let n = end; n >= start; n--) nums.push(n);
+    const blocks = await Promise.all(nums.map((n) => jsonRpc('eth_getBlockByNumber', [`0x${n.toString(16)}`, true]).catch(() => null)));
+    for (const block of blocks) {
+      if (!block) continue;
+      for (const tx of block.transactions || []) {
+        if (!sameAddress(tx?.from, addresses) && !sameAddress(tx?.to, addresses)) continue;
+        found.push({
+          hash: tx.hash,
+          from: tx.from || null,
+          to: tx.to || null,
+          value: tx.value || '0x0',
+          blockNumber: block.number ? parseInt(block.number, 16) : null,
+          timestamp: block.timestamp ? parseInt(block.timestamp, 16) : null,
+          input: tx.input || tx.data || null,
+        });
+      }
+    }
+    if (found.length >= 30) break;
+  }
+
+  return { latest, first, transactions: found.slice(0, 30) };
+}
+
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -70,6 +109,13 @@ export default async function handler(req, res) {
       try { data = JSON.parse(text); } catch { data = null; }
       if (!r.ok) throw new Error(`receipt HTTP ${r.status}`);
       return res.status(200).json({ ok: true, receipt: data });
+    }
+
+    if (mode === 'recentAddress') {
+      const addresses = [src.address, src.alt].filter(Boolean).map(String);
+      if (!addresses.length) return res.status(400).json({ ok: false, error: 'address required' });
+      const data = await recentAddressActivity(addresses, src.blocks || 80);
+      return res.status(200).json({ ok: true, addresses, ...data });
     }
 
     return res.status(400).json({ ok: false, error: 'bad mode' });
