@@ -639,6 +639,35 @@ async function swap() {
   }
 }
 
+
+async function selfTransfer(count = 1) {
+  if (!wallet) return log('Connect wallet first.');
+  if (!window.asentum?.sendTransfer) return log('Wallet transfer API unavailable.');
+  const actionLog = $('actionlog');
+  const amount = 1000000000000000n; // 0.001 ASE
+  try {
+    await network();
+    if (networkStalled || !chainOK) throw new Error('Network is not healthy.');
+    const bal = await balanceOf(NATIVE);
+    const needed = amount * BigInt(count) + GAS_RESERVE * BigInt(count);
+    if (bal < needed) throw new Error('Insufficient ASE for test transfers + gas.');
+    const hashes = [];
+    for (let i = 0; i < count; i++) {
+      if (actionLog) actionLog.textContent = 'Approve test transaction ' + (i + 1) + '/' + count + ' in your wallet…';
+      const r = await window.asentum.sendTransfer({ to: wallet, amount: amount.toString() });
+      const h = r?.txHash || r;
+      if (!h) throw new Error('No tx hash returned');
+      hashes.push(h);
+      const rcpt = await receipt(h);
+      if (!rcpt || String(rcpt.status).toLowerCase() !== '0x1') throw new Error('Test transaction did not confirm');
+    }
+    if (actionLog) actionLog.innerHTML = 'CONFIRMED ✓ · ' + hashes.map(h => '<a target="_blank" href="' + EXPLORER + '/tx/' + h + '">' + short(h) + ' ↗</a>').join(' · ') + '<br>These are genuine testnet transactions. ASENDEX does not claim or guarantee XP; Asentum decides XP eligibility.';
+    await refreshAllBalances(); await balances(); renderTokens();
+  } catch (e) {
+    if (actionLog) actionLog.textContent = 'Action stopped: ' + e.message;
+  }
+}
+
 injectFeeUI();
 $('connect') && ($('connect').onclick = connect);
 $('from') && ($('from').onchange = () => changed('from'));
@@ -659,6 +688,8 @@ $('max') && ($('max').onclick = () => {
   quote();
 });
 $('swap') && ($('swap').onclick = swap);
+$('selftx') && ($('selftx').onclick = () => selfTransfer(1));
+$('batchtx') && ($('batchtx').onclick = () => selfTransfer(3));
 $('refreshact') && ($('refreshact').onclick = refreshActivity);
 $('clearact') && ($('clearact').onclick = () => { if (wallet) { localStorage.removeItem(activityKey()); renderActivity(); } });
 
