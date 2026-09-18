@@ -2,6 +2,30 @@
 
 All notable ASENDEX testnet changes are documented here.
 
+## [Beta v4.1] - 2026-09-17
+
+### Added
+
+- Chain Health Sentinel for Asentum Chain 1423.
+- Latest block age, hash and parent-hash health data.
+- Best-effort cross-check between two public RPC heads.
+- Material RPC mismatch detection.
+- Automatic swap disablement while the network is stale/unhealthy.
+- Three advancing observations required after a locally observed stall before swaps are re-enabled.
+- A second chain-health preflight immediately before swap submission.
+- Public `docs/chain-health.md` documentation.
+- ASE Utility panel in the live interface.
+
+### Fixed
+
+- Block timestamp normalization. The launch-day latest block exposed a millisecond-scale timestamp; treating it as Unix seconds could incorrectly calculate block age as zero.
+
+### Transparency / incident response
+
+- The Season 1 launch-day stall at block 15914 is preserved in the Builder Log and GitHub Issue #2.
+- Receipt timeouts are not treated as proof of transaction failure and users are warned not to blindly resubmit.
+
+
 ## [Beta v4] - 2026-09-17
 
 ### Added
