@@ -19,6 +19,8 @@ let quoteTs = 0;
 let allBalances = new Map();
 let prices = new Map();
 let pairMove = null;
+let networkStalled = false;
+let networkAgeSeconds = null;
 
 const $ = (id) => document.getElementById(id);
 const short = (a) => a && a.length > 16 ? `${a.slice(0, 7)}…${a.slice(-5)}` : (a || '—');
@@ -114,18 +116,42 @@ function injectFeeUI() {
     n.textContent = 'Beta fee model: after a swap is CONFIRMED, the wallet asks for a second explicit approval to send the 0.10% ASENDEX fee in ASE to the public treasury. The fee is never charged before a swap and is not hidden.';
     body.insertBefore(n, body.firstChild);
   }
+  if (body && !$('networkHealthNotice')) {
+    const n = document.createElement('div');
+    n.id = 'networkHealthNotice';
+    n.className = 'risk';
+    n.style.display = 'none';
+    n.style.marginBottom = '10px';
+    body.insertBefore(n, body.firstChild);
+  }
 }
 
 async function network() {
   const j = await api('network');
   chainOK = j.chainId === 1423;
+  networkStalled = j.stalled === true;
+  networkAgeSeconds = j.blockAgeSeconds ?? null;
+
   if ($('chain')) $('chain').textContent = j.chainId;
   if ($('block')) $('block').textContent = j.blockNumber.toLocaleString();
-  if ($('blk')) $('blk').textContent = `#${j.blockNumber.toLocaleString()}`;
-  if ($('net')) $('net').textContent = chainOK ? 'LIVE · 1423' : `CHAIN ${j.chainId}`;
+  if ($('blk')) $('blk').textContent = '#' + j.blockNumber.toLocaleString();
+  if ($('net')) $('net').textContent = networkStalled ? 'STALLED · 1423' : (chainOK ? 'LIVE · 1423' : 'CHAIN ' + j.chainId);
+
   if ($('badge')) {
-    $('badge').textContent = chainOK ? 'LIVE' : 'WRONG CHAIN';
-    $('badge').className = chainOK ? 'good' : 'bad';
+    $('badge').textContent = networkStalled ? 'STALLED' : (chainOK ? 'LIVE' : 'WRONG CHAIN');
+    $('badge').className = networkStalled ? 'bad' : (chainOK ? 'good' : 'bad');
+  }
+
+  const notice = $('networkHealthNotice');
+  if (notice) {
+    if (networkStalled) {
+      const age = networkAgeSeconds == null ? 'unknown' : networkAgeSeconds + 's';
+      notice.style.display = 'block';
+      notice.className = 'risk show high';
+      notice.textContent = 'NETWORK STALLED: latest block is stale (' + age + '). New swaps are disabled. Do not resubmit pending transactions until blocks advance again.';
+    } else {
+      notice.style.display = 'none';
+    }
   }
   updateButton();
 }
@@ -372,6 +398,7 @@ function updateButton() {
   const b = tokenByAddress($('to')?.value);
   const p = a && b ? findPair(a, b) : null;
   const v = a ? parseUnits($('ain')?.value, a.decimals) : 0n;
+  if (networkStalled) { btn.disabled = true; btn.textContent = 'Network stalled — do not submit'; return; }
   if (!chainOK) { btn.disabled = true; btn.textContent = 'Chain unavailable'; return; }
   if (!wallet) { btn.disabled = true; btn.textContent = 'Connect wallet to swap'; return; }
   if (!p || !v || !quoteOut) { btn.disabled = true; btn.textContent = 'Enter an amount'; return; }
