@@ -2,6 +2,27 @@
 
 All notable ASENDEX testnet changes are documented here.
 
+## [Beta v4.2] - 2026-09-18
+
+### Added
+
+- Wallet-approved testnet actions for transparent network testing: one 0.001 ASE self-transfer or a three-transfer batch.
+- Explicit disclosure that ASENDEX does not determine or guarantee Asentum XP eligibility.
+- Current production deployment synchronized with the public GitHub implementation.
+
+### Fixed
+
+- Network Observatory now consumes `blockTimestamp` / `blockAgeSeconds` from the Chain Health Sentinel instead of the obsolete `timestamp` field.
+- Observatory now surfaces `STALLED / UNHEALTHY` and `RPC MISMATCH` from the same health model used by the swap safety gate.
+- Native balance reads now canonicalize 20-byte hex wallet addresses to lowercase before querying the current Asentum `/balance` endpoint. This works around a reproducible upstream behavior where mixed-case and lowercase representations of the same address can return different balances.
+- The obsolete `asendex-testnet.vercel.app` build is deprecated in favor of the canonical Beta URL.
+
+### Safety / transparency
+
+- A responsive RPC is not labeled healthy if the canonical head timestamp is stale.
+- Both public heads agreeing on the same stale block is classified as a network stall, not an RPC mismatch.
+- Test actions remain disabled while the Chain Health Sentinel reports the network unhealthy.
+
 ## [Beta v4.1] - 2026-09-17
 
 ### Added
