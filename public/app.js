@@ -20,7 +20,10 @@ let allBalances = new Map();
 let prices = new Map();
 let pairMove = null;
 let networkStalled = false;
+let networkRecovering = false;
 let networkAgeSeconds = null;
+let lastObservedBlock = null;
+let recoveryAdvances = 0;
 
 const $ = (id) => document.getElementById(id);
 const short = (a) => a && a.length > 16 ? `${a.slice(0, 7)}…${a.slice(-5)}` : (a || '—');
@@ -129,17 +132,51 @@ function injectFeeUI() {
 async function network() {
   const j = await api('network');
   chainOK = j.chainId === 1423;
-  networkStalled = j.stalled === true;
   networkAgeSeconds = j.blockAgeSeconds ?? null;
+
+  const persistedStall = localStorage.getItem('asendex.chain1423.wasStalled') === '1';
+  const hardUnhealthy = j.stalled === true || j.rpcMismatch === true || j.healthy === false;
+
+  if (hardUnhealthy) {
+    networkStalled = true;
+    networkRecovering = false;
+    recoveryAdvances = 0;
+    localStorage.setItem('asendex.chain1423.wasStalled', '1');
+  } else if (persistedStall) {
+    if (lastObservedBlock != null && j.blockNumber > lastObservedBlock) recoveryAdvances += 1;
+    networkRecovering = recoveryAdvances < 3;
+    networkStalled = networkRecovering;
+    if (!networkRecovering) {
+      localStorage.removeItem('asendex.chain1423.wasStalled');
+      recoveryAdvances = 0;
+    }
+  } else {
+    networkStalled = false;
+    networkRecovering = false;
+    recoveryAdvances = 0;
+  }
+
+  lastObservedBlock = j.blockNumber;
 
   if ($('chain')) $('chain').textContent = j.chainId;
   if ($('block')) $('block').textContent = j.blockNumber.toLocaleString();
   if ($('blk')) $('blk').textContent = '#' + j.blockNumber.toLocaleString();
-  if ($('net')) $('net').textContent = networkStalled ? 'STALLED · 1423' : (chainOK ? 'LIVE · 1423' : 'CHAIN ' + j.chainId);
+  if ($('blockAge')) $('blockAge').textContent = networkAgeSeconds == null ? '—' : networkAgeSeconds + 's';
+  if ($('rpcHealth')) {
+    $('rpcHealth').textContent = j.rpcMismatch === true
+      ? 'MISMATCH'
+      : (j.secondary ? 'AGREE' : '1 ENDPOINT');
+    $('rpcHealth').className = j.rpcMismatch === true ? 'bad' : (j.secondary ? 'good' : 'warn');
+  }
 
+  const status = networkRecovering ? 'RECOVERING ' + recoveryAdvances + '/3'
+    : (networkStalled ? 'STALLED'
+    : (chainOK ? 'LIVE' : 'WRONG CHAIN'));
+
+  if ($('net')) $('net').textContent = status + (chainOK ? ' · 1423' : '');
   if ($('badge')) {
-    $('badge').textContent = networkStalled ? 'STALLED' : (chainOK ? 'LIVE' : 'WRONG CHAIN');
-    $('badge').className = networkStalled ? 'bad' : (chainOK ? 'good' : 'bad');
+    $('badge').textContent = status;
+    $('badge').className = networkStalled || !chainOK ? 'bad' : 'good';
   }
 
   const notice = $('networkHealthNotice');
@@ -148,7 +185,9 @@ async function network() {
       const age = networkAgeSeconds == null ? 'unknown' : networkAgeSeconds + 's';
       notice.style.display = 'block';
       notice.className = 'risk show high';
-      notice.textContent = 'NETWORK STALLED: latest block is stale (' + age + '). New swaps are disabled. Do not resubmit pending transactions until blocks advance again.';
+      notice.textContent = networkRecovering
+        ? 'NETWORK RECOVERING: blocks are moving again, but ASENDEX requires 3 consecutive advancing observations before swaps are re-enabled (' + recoveryAdvances + '/3).'
+        : 'NETWORK STALLED / UNHEALTHY: latest block age ' + age + '. New swaps are disabled. Do not resubmit pending transactions until the network recovers.';
     } else {
       notice.style.display = 'none';
     }
