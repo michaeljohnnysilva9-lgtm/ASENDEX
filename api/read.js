@@ -5,7 +5,7 @@ const PAIRS = process.env.AURAS_PAIRS_URL || 'https://auras.asentum.com/api/pair
 async function jsonRpcAt(url, method, params = []) {
   const r = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'user-agent': 'ASENDEX-Beta/4.1' },
+    headers: { 'content-type': 'application/json', 'user-agent': 'ASENDEX-Beta/4.2' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
   if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
@@ -26,8 +26,16 @@ function normalizeUnixSeconds(value) {
   return Math.floor(n);
 }
 
+function normalizeNativeAddress(value) {
+  const a = String(value || '').trim();
+  // Asentum's current /balance endpoint can return a different result for the
+  // same 20-byte hex address when mixed-case hex is supplied. Canonicalize
+  // only EVM-style hex addresses; preserve native ase1... strings verbatim.
+  return /^0x[0-9a-fA-F]{40}$/.test(a) ? a.toLowerCase() : a;
+}
+
 async function getJson(url, options = {}) {
-  const r = await fetch(url, { ...options, headers: { ...(options.headers || {}), 'user-agent': 'ASENDEX-Beta/4.0' } });
+  const r = await fetch(url, { ...options, headers: { ...(options.headers || {}), 'user-agent': 'ASENDEX-Beta/4.2' } });
   const text = await r.text();
   let j;
   try { j = JSON.parse(text); } catch { j = { raw: text }; }
@@ -148,14 +156,16 @@ export default async function handler(req, res) {
     }
 
     if (mode === 'balance') {
-      const data = await getJson(`${ASENTUM}/balance/${encodeURIComponent(src.address)}`, { cache: 'no-store' });
-      return res.status(200).json({ ok: true, balance: String(data?.balance ?? '0') });
+      const address = normalizeNativeAddress(src.address);
+      if (!address) return res.status(400).json({ ok: false, error: 'address required' });
+      const data = await getJson(`${ASENTUM}/balance/${encodeURIComponent(address)}`, { cache: 'no-store' });
+      return res.status(200).json({ ok: true, balance: String(data?.balance ?? '0'), normalizedAddress: address });
     }
 
     if (mode === 'receipt') {
       const r = await fetch(`${ASENTUM}/receipts/${encodeURIComponent(src.txHash)}`, {
         cache: 'no-store',
-        headers: { 'user-agent': 'ASENDEX-Beta/4.0' },
+        headers: { 'user-agent': 'ASENDEX-Beta/4.2' },
       });
       if (r.status === 404) return res.status(200).json({ ok: true, receipt: null });
       const text = await r.text();
