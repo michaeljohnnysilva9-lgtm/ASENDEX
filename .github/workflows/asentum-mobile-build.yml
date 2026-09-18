@@ -1,4 +1,4 @@
-name: Build Asentum Mobile Wallet APK
+name: Build ASENDEX Wallet Mobile APK
 
 on:
   push:
@@ -24,7 +24,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Build secure wallet web assets
+      - name: Build ASENDEX Wallet web assets
         working-directory: mobile-wallet/web
         run: |
           npm install --no-audit --no-fund
@@ -46,10 +46,11 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p artifact
-          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/Asentum-Wallet-0.1.0-beta.apk
+          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.2.0-beta.apk
+          sha256sum artifact/ASENDEX-Wallet-Mobile-0.2.0-beta.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: asentum-wallet-android
-          path: artifact/Asentum-Wallet-0.1.0-beta.apk
+          name: asendex-wallet-mobile-android
+          path: artifact/ASENDEX-Wallet-Mobile-0.2.0-beta.apk
           if-no-files-found: error
           retention-days: 30
