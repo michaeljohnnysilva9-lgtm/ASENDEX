@@ -576,6 +576,8 @@ async function swap() {
   $('swap').disabled = true;
 
   try {
+    await network();
+    if (networkStalled) throw new Error('Network is stalled, recovering, or RPC heads disagree. No swap was submitted.');
     await balances();
     const preFee = a.native ? feeWeiFromASE(v) : 0n;
     if (a.native && v + preFee + GAS_RESERVE > inBalance) throw new Error('Saldo ASE insuficiente para swap + taxa ASENDEX + reserva de gas');
