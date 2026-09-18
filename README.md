@@ -28,6 +28,7 @@ ASENDEX is an independent, community-built testnet project for experimenting wit
 - Local Activity history with receipt refresh
 - Public treasury disclosure and transparent ASENDEX fee flow
 - Independent chain/RPC observability
+- Chain Health Sentinel with stale-head detection, RPC cross-checks and automatic swap blocking during unhealthy network conditions
 
 ## ASENDEX fee — testnet beta
 
@@ -91,7 +92,7 @@ A frontend saying `LIVE` is not sufficient proof by itself. Stronger evidence co
 - ASENDEX is unaudited experimental software.
 - Do not send mainnet assets to testnet contracts or addresses expecting testnet behavior.
 
-See [`SECURITY.md`](SECURITY.md) for security reporting.
+See [`SECURITY.md`](SECURITY.md) for security reporting and [`docs/chain-health.md`](docs/chain-health.md) for the Chain Health Sentinel safety policy.
 
 ## Repository structure
 
@@ -112,6 +113,7 @@ ASENDEX/
 └── docs/
     ├── architecture.md
     ├── asentum-network.md
+    ├── chain-health.md
     ├── fees.md
     ├── network-observatory.md
     └── testnet-results.md
