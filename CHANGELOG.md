@@ -14,7 +14,7 @@ All notable ASENDEX testnet changes are documented here.
 
 - Network Observatory now consumes `blockTimestamp` / `blockAgeSeconds` from the Chain Health Sentinel instead of the obsolete `timestamp` field.
 - Observatory now surfaces `STALLED / UNHEALTHY` and `RPC MISMATCH` from the same health model used by the swap safety gate.
-- Native balance reads now canonicalize 20-byte hex wallet addresses to lowercase before querying the current Asentum `/balance` endpoint. This works around a reproducible upstream behavior where mixed-case and lowercase representations of the same address can return different balances.
+- Native balance reads now canonicalize 20-byte hex wallet representations before querying the Asentum balance endpoint, while preserving native `ase1...` addresses.
 - The obsolete `asendex-testnet.vercel.app` build is deprecated in favor of the canonical Beta URL.
 
 ### Safety / transparency
