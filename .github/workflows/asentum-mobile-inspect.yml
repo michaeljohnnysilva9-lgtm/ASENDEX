@@ -1,37 +1,7 @@
 name: Asentum Mobile SDK Inspect
-
-on:
-  push:
-    branches: [asentum-mobile-wallet]
-  workflow_dispatch:
-
+on: workflow_dispatch
 jobs:
-  inspect:
+  note:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-      - name: Inspect npm packages
-        shell: bash
-        run: |
-          set -euxo pipefail
-          mkdir -p /tmp/asentum-sdk && cd /tmp/asentum-sdk
-          npm pack @asentum/sdk@0.1.0
-          npm pack @asentum/crypto@0.1.0
-          echo '=== SDK tar contents ==='
-          tar -tzf asentum-sdk-0.1.0.tgz | sed -n '1,200p'
-          echo '=== CRYPTO tar contents ==='
-          tar -tzf asentum-crypto-0.1.0.tgz | sed -n '1,200p'
-          mkdir sdk crypto
-          tar -xzf asentum-sdk-0.1.0.tgz -C sdk --strip-components=1
-          tar -xzf asentum-crypto-0.1.0.tgz -C crypto --strip-components=1
-          echo '=== SDK package.json ==='
-          cat sdk/package.json
-          echo '=== SDK declarations ==='
-          find sdk -type f \( -name '*.d.ts' -o -name '*.ts' \) -maxdepth 4 -print -exec sed -n '1,240p' {} \;
-          echo '=== CRYPTO package.json ==='
-          cat crypto/package.json
-          echo '=== CRYPTO declarations ==='
-          find crypto -type f \( -name '*.d.ts' -o -name '*.ts' \) -maxdepth 4 -print -exec sed -n '1,240p' {} \;
+      - run: echo 'SDK inspection completed during wallet bootstrap.'
