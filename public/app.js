@@ -224,6 +224,8 @@ async function markets() {
     }
   }
 
+  // Token contracts are discovered directly from live Auras pair data returned by /api/read.
+  // This avoids a hard-coded token list and keeps ASENDEX aligned with pools visible on testnet.
   TOKENS = [NATIVE, ...m.values()];
   await Promise.all(TOKENS.slice(1).map(loadTokenMeta));
 
@@ -314,8 +316,10 @@ function renderTokens() {
     const d = document.createElement('div');
     const bal = allBalances.get(t.address.toLowerCase());
     d.className = 'tok';
-    d.innerHTML = `<span><b>${t.symbol}/ASE</b><br><small>Pool #${p.poolId} · ${(p.feeBps / 100).toFixed(2)}% · TVL ${formatNum(p.tvlQuote, 2)}</small></span><span class="tb">${bal == null ? '—' : `${formatUnits(bal, t.decimals, 6)} ${t.symbol}`}</span>`;
-    d.onclick = () => { $('from').value = NATIVE.address; $('to').value = t.address; changed('to'); };
+    d.innerHTML = `<span><b>${t.symbol}/ASE</b><br><small>Pool #${p.poolId} · ${(p.feeBps / 100).toFixed(2)}% · TVL ${formatNum(p.tvlQuote, 2)}</small><br><small class="mono" title="${t.address}">${short(t.address)}</small></span><span class="tb">${bal == null ? '—' : `${formatUnits(bal, t.decimals, 6)} ${t.symbol}`}<br><button class="ghost copy-contract" data-address="${t.address}" title="Copy ${t.symbol} contract">Copy contract</button></span>`;
+    d.onclick = (ev) => { if (ev.target.closest('.copy-contract')) return; $('from').value = NATIVE.address; $('to').value = t.address; changed('to'); };
+    const copyBtn = d.querySelector('.copy-contract');
+    if (copyBtn) copyBtn.onclick = async (ev) => { ev.stopPropagation(); try { await navigator.clipboard.writeText(t.address); copyBtn.textContent = 'Copied ✓'; setTimeout(() => copyBtn.textContent = 'Copy contract', 1400); } catch { copyBtn.textContent = 'Copy failed'; } };
     box.appendChild(d);
   }
   if ($('count')) $('count').textContent = `${PAIRS.length} pairs`;
