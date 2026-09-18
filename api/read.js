@@ -28,9 +28,8 @@ function normalizeUnixSeconds(value) {
 
 function normalizeNativeAddress(value) {
   const a = String(value || '').trim();
-  // Asentum's current /balance endpoint can return a different result for the
-  // same 20-byte hex address when mixed-case hex is supplied. Canonicalize
-  // only EVM-style hex addresses; preserve native ase1... strings verbatim.
+  // Canonicalize EVM-style hex wallet representations before native-balance
+  // reads so extension output is handled consistently. Preserve ase1... as-is.
   return /^0x[0-9a-fA-F]{40}$/.test(a) ? a.toLowerCase() : a;
 }
 
