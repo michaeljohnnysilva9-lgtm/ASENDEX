@@ -258,6 +258,8 @@ async function markets() {
 
   await refreshAllBalances();
   renderTokens();
+  tokenSelectCopyIcon('from');
+  tokenSelectCopyIcon('to');
   changed('from', false);
 }
 
@@ -323,6 +325,32 @@ function renderTokens() {
     box.appendChild(d);
   }
   if ($('count')) $('count').textContent = `${PAIRS.length} pairs`;
+}
+
+function tokenSelectCopyIcon(id) {
+  const sel = $(id);
+  if (!sel || sel.parentElement.querySelector('.select-copy-contract')) return;
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'select-copy-contract';
+  btn.textContent = '⧉';
+  btn.title = 'Copy selected token contract';
+  btn.setAttribute('aria-label', 'Copy selected token contract');
+  btn.style.cssText = 'width:28px;height:28px;padding:0;border:0;background:transparent;color:var(--m);font-size:16px;cursor:pointer;opacity:.72';
+  btn.onclick = async () => {
+    const t = tokenByAddress(sel.value);
+    if (!t || t.native) return;
+    try {
+      await navigator.clipboard.writeText(t.address);
+      btn.textContent = '✓';
+      btn.title = t.symbol + ' contract copied';
+      setTimeout(() => { btn.textContent = '⧉'; btn.title = 'Copy ' + t.symbol + ' contract'; }, 1200);
+    } catch {
+      btn.textContent = '!';
+      setTimeout(() => btn.textContent = '⧉', 1200);
+    }
+  };
+  sel.insertAdjacentElement('afterend', btn);
 }
 
 function changed(src, doQuote = true) {
