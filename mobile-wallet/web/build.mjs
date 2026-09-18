@@ -1,5 +1,5 @@
 import { build } from 'esbuild';
-import { mkdir, copyFile } from 'node:fs/promises';
+import { mkdir, copyFile, readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 const out = resolve('../app/src/main/assets');
@@ -9,4 +9,9 @@ await build({ ...common, entryPoints: ['src/signer.js'], outfile: resolve(out, '
 await build({ ...common, entryPoints: ['src/app.js'], outfile: resolve(out, 'app.bundle.js') });
 await copyFile('signer.html', resolve(out, 'signer.html'));
 await copyFile('index.html', resolve(out, 'index.html'));
-console.log('ASENDEX Wallet Mobile web assets built');
+await copyFile('aurora.css', resolve(out, 'aurora.css'));
+const indexPath = resolve(out, 'index.html');
+let html = await readFile(indexPath, 'utf8');
+if (!html.includes('aurora.css')) html = html.replace('</head>', '<link rel="stylesheet" href="aurora.css"></head>');
+await writeFile(indexPath, html, 'utf8');
+console.log('ASENDEX Wallet Mobile Aurora Premium assets built');
