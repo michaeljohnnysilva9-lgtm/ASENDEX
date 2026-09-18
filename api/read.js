@@ -2,16 +2,28 @@ const ASENTUM = process.env.ASENTUM_RPC_URL || 'https://testnet.asentum.com';
 const EXPLORER_RPC = process.env.ASENTUM_EXPLORER_RPC_URL || 'https://explorer.asentum.com/rpc';
 const PAIRS = process.env.AURAS_PAIRS_URL || 'https://auras.asentum.com/api/pairs';
 
-async function jsonRpc(method, params = []) {
-  const r = await fetch(EXPLORER_RPC, {
+async function jsonRpcAt(url, method, params = []) {
+  const r = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', 'user-agent': 'ASENDEX-Beta/4.0' },
+    headers: { 'content-type': 'application/json', 'user-agent': 'ASENDEX-Beta/4.1' },
     body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
   });
-  if (!r.ok) throw new Error(`Explorer RPC HTTP ${r.status}`);
+  if (!r.ok) throw new Error(`RPC HTTP ${r.status}`);
   const j = await r.json();
-  if (j.error) throw new Error(j.error.message || 'Explorer RPC error');
+  if (j.error) throw new Error(j.error.message || 'RPC error');
   return j.result;
+}
+
+async function jsonRpc(method, params = []) {
+  return jsonRpcAt(EXPLORER_RPC, method, params);
+}
+
+function normalizeUnixSeconds(value) {
+  if (value == null) return null;
+  let n = typeof value === 'string' && value.startsWith('0x') ? parseInt(value, 16) : Number(value);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  while (n > 100000000000) n = Math.floor(n / 1000);
+  return Math.floor(n);
 }
 
 async function getJson(url, options = {}) {
@@ -76,20 +88,47 @@ export default async function handler(req, res) {
     if (mode === 'network') {
       const [cid, bn] = await Promise.all([jsonRpc('eth_chainId'), jsonRpc('eth_blockNumber')]);
       const block = await jsonRpc('eth_getBlockByNumber', [bn, false]);
-      const blockTimestamp = block?.timestamp ? parseInt(block.timestamp, 16) : null;
+      const blockTimestampRaw = block?.timestamp ?? null;
+      const blockTimestamp = normalizeUnixSeconds(blockTimestampRaw);
       const now = Math.floor(Date.now() / 1000);
       const blockAgeSeconds = blockTimestamp ? Math.max(0, now - blockTimestamp) : null;
       const stalled = blockAgeSeconds != null ? blockAgeSeconds > 120 : null;
+
+      let secondary = null;
+      try {
+        const [cid2, bn2] = await Promise.all([
+          jsonRpcAt(ASENTUM, 'eth_chainId'),
+          jsonRpcAt(ASENTUM, 'eth_blockNumber'),
+        ]);
+        secondary = {
+          chainId: parseInt(cid2, 16),
+          blockNumber: parseInt(bn2, 16),
+        };
+      } catch {}
+
+      const chainId = parseInt(cid, 16);
+      const blockNumber = parseInt(bn, 16);
+      const divergenceBlocks = secondary ? Math.abs(blockNumber - secondary.blockNumber) : null;
+      const rpcMismatch = secondary
+        ? secondary.chainId !== chainId || divergenceBlocks > 2
+        : null;
+      const healthy = stalled === false && rpcMismatch !== true;
+
       return res.status(200).json({
         ok: true,
-        chainId: parseInt(cid, 16),
-        blockNumber: parseInt(bn, 16),
+        chainId,
+        blockNumber,
         blockHash: block?.hash || null,
         parentHash: block?.parentHash || null,
         blockTimestamp,
+        blockTimestampRaw,
         blockAgeSeconds,
         stalled,
         stallThresholdSeconds: 120,
+        secondary,
+        divergenceBlocks,
+        rpcMismatch,
+        healthy,
       });
     }
 
