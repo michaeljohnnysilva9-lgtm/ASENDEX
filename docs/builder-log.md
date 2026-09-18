@@ -30,13 +30,24 @@ https://github.com/michaeljohnnysilva9-lgtm/ASENDEX/issues/2
 
 While the head is not progressing, ASENDEX should treat receipt timeouts as a network-health problem rather than instructing users to resubmit. Repeated submission can create duplicate intent once the network recovers.
 
-### Planned mitigation
+### Sentinel implementation
 
-1. stale-head detection;
-2. persistent-stall warning;
-3. temporary swap disablement during confirmed stalls;
-4. recovery confirmation only after multiple advancing blocks;
-5. incident timeline with observed and recovery heights.
+The launch-day incident led directly to **ASENDEX Chain Health Sentinel v1**:
+
+1. stale-head detection using normalized block timestamps;
+2. visible persistent-stall warning;
+3. automatic swap disablement while unhealthy;
+4. best-effort comparison of two public RPC heads;
+5. recovery gate requiring three consecutive advancing observations after a locally observed stall;
+6. a fresh chain-health preflight immediately before swap submission.
+
+### Additional finding during implementation
+
+The production network endpoint exposed the latest block timestamp as a millisecond-scale Unix value. The first implementation interpreted it as seconds, which could make a stale block appear to have an age of zero.
+
+ASENDEX corrected the calculation by normalizing second/millisecond/microsecond-scale timestamps before deriving block age.
+
+This is documented in `docs/chain-health.md`.
 
 ---
 
