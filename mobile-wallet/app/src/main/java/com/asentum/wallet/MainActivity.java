@@ -55,9 +55,10 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.GCMParameterSpec;
 
 public class MainActivity extends FragmentActivity {
-    private static final int BG = Color.rgb(3, 6, 5);
-    private static final int PANEL = Color.rgb(8, 17, 12);
-    private static final int GREEN = Color.rgb(69, 255, 141);
+    private static final int BG = Color.rgb(4, 7, 20);
+    private static final int PANEL = Color.rgb(8, 16, 31);
+    private static final int GREEN = Color.rgb(33, 242, 163);
+    private static final int CYAN = Color.rgb(25, 211, 255);
     private static final String PREFS = "asentum_wallet";
     private static final String RPC = "https://testnet.asentum.com";
     private static final String BIO_ALIAS = "asendex_wallet_bio_v1";
@@ -132,14 +133,19 @@ public class MainActivity extends FragmentActivity {
         browserContainer = new LinearLayout(this);
         browserContainer.setOrientation(LinearLayout.VERTICAL); browserContainer.setBackgroundColor(BG); browserContainer.setVisibility(View.GONE);
         LinearLayout bar = new LinearLayout(this); bar.setGravity(Gravity.CENTER_VERTICAL); bar.setPadding(dp(7), dp(8), dp(7), dp(8)); bar.setBackgroundColor(PANEL);
-        TextView back=browserButton("‹"), forward=browserButton("›"), reload=browserButton("↻"), close=browserButton("×");
-        addressBar = new EditText(this); addressBar.setSingleLine(true); addressBar.setTextColor(Color.WHITE); addressBar.setHintTextColor(Color.rgb(105,130,115)); addressBar.setHint("https://..."); addressBar.setTextSize(12); addressBar.setPadding(dp(11),0,dp(11),0); addressBar.setBackgroundColor(Color.rgb(6,15,10));
+        TextView back=browserButton("‹"), forward=browserButton("›"), connect=browserButton("◈"), reload=browserButton("↻"), close=browserButton("×");
+        connect.setContentDescription("Conectar dApp à ASENDEX Wallet");
+        addressBar = new EditText(this); addressBar.setSingleLine(true); addressBar.setTextColor(Color.WHITE); addressBar.setHintTextColor(Color.rgb(120,140,180)); addressBar.setHint("https://..."); addressBar.setTextSize(12); addressBar.setPadding(dp(11),0,dp(11),0); addressBar.setBackgroundColor(Color.rgb(10,20,42));
         LinearLayout.LayoutParams alp=new LinearLayout.LayoutParams(0,dp(44),1f); alp.setMargins(dp(4),0,dp(4),0);
-        back.setOnClickListener(v->{if(dappWebView.canGoBack())dappWebView.goBack();}); forward.setOnClickListener(v->{if(dappWebView.canGoForward())dappWebView.goForward();}); reload.setOnClickListener(v->dappWebView.reload()); close.setOnClickListener(v->closeBrowser());
+        back.setOnClickListener(v->{if(dappWebView.canGoBack())dappWebView.goBack();});
+        forward.setOnClickListener(v->{if(dappWebView.canGoForward())dappWebView.goForward();});
+        connect.setOnClickListener(v->connectCurrentDappCompat());
+        connect.setOnLongClickListener(v->{Toast.makeText(this,"Conectar este dApp como extensão Asentum",Toast.LENGTH_SHORT).show();return true;});
+        reload.setOnClickListener(v->dappWebView.reload()); close.setOnClickListener(v->closeBrowser());
         addressBar.setOnEditorActionListener((v,a,e)->{navigateAddress(addressBar.getText().toString());return true;});
-        bar.addView(back);bar.addView(forward);bar.addView(addressBar,alp);bar.addView(reload);bar.addView(close); browserContainer.addView(bar,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(60)));
+        bar.addView(back);bar.addView(forward);bar.addView(addressBar,alp);bar.addView(connect);bar.addView(reload);bar.addView(close); browserContainer.addView(bar,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,dp(60)));
 
-        dappWebView = new WebView(this); WebSettings s=dappWebView.getSettings(); s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setAllowFileAccess(false); s.setAllowContentAccess(false); s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW); s.setJavaScriptCanOpenWindowsAutomatically(false); s.setSupportMultipleWindows(false); s.setUserAgentString(s.getUserAgentString()+" ASENDEXWalletMobile/0.2.0"); if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O)s.setSafeBrowsingEnabled(true); dappWebView.setBackgroundColor(BG);
+        dappWebView = new WebView(this); WebSettings s=dappWebView.getSettings(); s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true); s.setAllowFileAccess(false); s.setAllowContentAccess(false); s.setMixedContentMode(WebSettings.MIXED_CONTENT_NEVER_ALLOW); s.setJavaScriptCanOpenWindowsAutomatically(false); s.setSupportMultipleWindows(false); s.setUserAgentString(s.getUserAgentString()+" ASENDEXWalletMobile/0.3.1 AsentumExtensionCompatible/1.0"); if(Build.VERSION.SDK_INT>=Build.VERSION_CODES.O)s.setSafeBrowsingEnabled(true); dappWebView.setBackgroundColor(BG);
         dappWebView.addJavascriptInterface(new DappBridge(),"AsentumNative"); installProviderScript();
         dappWebView.setWebViewClient(new WebViewClient(){
             @Override public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request){String scheme=request.getUrl().getScheme();return !("https".equalsIgnoreCase(scheme)||"http".equalsIgnoreCase(scheme));}
@@ -148,14 +154,37 @@ public class MainActivity extends FragmentActivity {
         browserContainer.addView(dappWebView,new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,0,1f)); root.addView(browserContainer,new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,ViewGroup.LayoutParams.MATCH_PARENT));
     }
 
-    private TextView browserButton(String label){TextView t=new TextView(this);t.setText(label);t.setTextColor(GREEN);t.setTextSize(25);t.setGravity(Gravity.CENTER);t.setBackgroundColor(Color.TRANSPARENT);t.setLayoutParams(new LinearLayout.LayoutParams(dp(40),dp(44)));return t;}
-    private static final String PROVIDER_JS="(function(){if(window.asentum&&window.asentum.__mobile)return;var seq=1,p={};function q(m,a){return new Promise(function(res,rej){var id=String(seq++);p[id]={res:res,rej:rej};AsentumNative.request(id,JSON.stringify({method:m,params:a||{}}));});}window.__asentumNativeResolve=function(id,ok,json){var x=p[String(id)];if(!x)return;delete p[String(id)];var d={};try{d=json?JSON.parse(json):{};}catch(e){d={message:json};}if(ok)x.res(d);else x.rej(new Error(d.message||'Wallet request rejected'));};window.asentum={__mobile:true,getAddress:function(){return q('getAddress').then(function(r){return r.address;});},connect:function(){return q('connect');},disconnect:function(){return q('disconnect').then(function(){});},sendTransfer:function(v){return q('sendTransfer',v);},callContract:function(v){return q('callContract',v);},viewContract:function(v){return q('viewContract',v);},deployContract:function(v){return q('deployContract',v);}};try{window.dispatchEvent(new Event('asentum#initialized'));}catch(e){}})();";
+    private TextView browserButton(String label){TextView t=new TextView(this);t.setText(label);t.setTextColor(CYAN);t.setTextSize(24);t.setGravity(Gravity.CENTER);t.setBackgroundColor(Color.TRANSPARENT);t.setLayoutParams(new LinearLayout.LayoutParams(dp(38),dp(44)));return t;}
+
+    private static final String PROVIDER_JS="(function(){if(window.asentum&&window.asentum.__asendexMobile)return;var seq=1,p={},listeners={};function emit(n,d){(listeners[n]||[]).slice().forEach(function(fn){try{fn(d);}catch(e){}});try{window.dispatchEvent(new CustomEvent('asentum:'+n,{detail:d}));}catch(e){}}function q(m,a){return new Promise(function(res,rej){var id=String(seq++);p[id]={res:res,rej:rej};AsentumNative.request(id,JSON.stringify({method:m,params:a||{}}));});}window.__asentumNativeResolve=function(id,ok,json){var x=p[String(id)];if(!x)return;delete p[String(id)];var d={};try{d=json?JSON.parse(json):{};}catch(e){d={message:json};}if(ok)x.res(d);else x.rej(new Error(d.message||'Wallet request rejected'));};window.asentum={__mobile:true,__asendexMobile:true,isAsentum:true,isExtension:true,name:'ASENDEX Wallet Mobile',version:'0.3.1',getAddress:function(){return q('getAddress').then(function(r){return r.address;});},connect:function(){return q('connect').then(function(r){emit('connect',r);emit('accountsChanged',[r.address]);return r;});},disconnect:function(){return q('disconnect').then(function(){emit('disconnect',{});});},sendTransfer:function(v){return q('sendTransfer',v);},callContract:function(v){return q('callContract',v);},viewContract:function(v){return q('viewContract',v);},deployContract:function(v){return q('deployContract',v);},on:function(n,fn){if(typeof fn!=='function')return;listeners[n]=listeners[n]||[];listeners[n].push(fn);},removeListener:function(n,fn){listeners[n]=(listeners[n]||[]).filter(function(x){return x!==fn;});}};try{window.dispatchEvent(new Event('asentum#initialized'));window.dispatchEvent(new CustomEvent('asentum:initialized',{detail:{provider:'ASENDEX Wallet Mobile',extension:true}}));}catch(e){}})();";
     private void installProviderScript(){if(WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))WebViewCompat.addDocumentStartJavaScript(dappWebView,PROVIDER_JS, Collections.singleton("*"));}
     private int dp(int v){return Math.round(v*getResources().getDisplayMetrics().density);} private boolean isHttpUrl(String u){return u!=null&&(u.startsWith("https://")||u.startsWith("http://"));}
     private void navigateAddress(String raw){String u=raw==null?"":raw.trim();if(u.isEmpty())return;if(!u.matches("(?i)^https?://.*"))u="https://"+u;try{Uri uri=Uri.parse(u);if(uri.getHost()==null)throw new Exception();dappWebView.loadUrl(u);}catch(Exception e){Toast.makeText(this,"URL inválida",Toast.LENGTH_SHORT).show();}}
     private void openBrowser(String url){browserContainer.setVisibility(View.VISIBLE);browserContainer.bringToFront();navigateAddress(url);} private void closeBrowser(){browserContainer.setVisibility(View.GONE);appWebView.bringToFront();appWebView.evaluateJavascript("if(window.loadRecents)loadRecents();if(window.loadActivity)loadActivity();",null);}
     private String originOf(String url){try{Uri u=Uri.parse(url);if(u.getScheme()==null||u.getHost()==null)return "unknown";String p=u.getPort()>0?":"+u.getPort():"";return u.getScheme()+"://"+u.getHost()+p;}catch(Exception e){return "unknown";}}
     private boolean isOriginAllowed(String origin){return prefs.getBoolean("origin_"+origin,false);} private void setOriginAllowed(String origin,boolean yes){prefs.edit().putBoolean("origin_"+origin,yes).apply();}
+
+    private void connectCurrentDappCompat(){
+        if(dappWebView==null||dappWebView.getUrl()==null){Toast.makeText(this,"Abra um dApp primeiro",Toast.LENGTH_SHORT).show();return;}
+        if(!walletUnlocked){Toast.makeText(this,"Desbloqueie a wallet antes de conectar",Toast.LENGTH_LONG).show();return;}
+        String origin=originOf(dappWebView.getUrl());
+        if("unknown".equals(origin)){Toast.makeText(this,"Origem do dApp inválida",Toast.LENGTH_SHORT).show();return;}
+        AlertDialog d=new AlertDialog.Builder(this)
+            .setTitle("Conectar dApp")
+            .setMessage(origin+"\n\nModo de compatibilidade Asentum Extension. O site poderá ver seu endereço público. Sua Private Key permanece protegida dentro da ASENDEX Wallet e toda transação continua exigindo aprovação.")
+            .setNegativeButton("Cancelar",null)
+            .setPositiveButton("Conectar",(x,w)->{setOriginAllowed(origin,true);installCompatSession();})
+            .create();
+        d.setOnShowListener(x->d.getButton(AlertDialog.BUTTON_POSITIVE).setTextColor(GREEN));d.show();
+    }
+
+    private void installCompatSession(){
+        String addr=savedAddress();
+        if(addr==null||addr.isEmpty()){Toast.makeText(this,"Endereço da wallet indisponível",Toast.LENGTH_SHORT).show();return;}
+        String js="(function(){try{localStorage.setItem('asentum:connect:address',JSON.stringify({address:"+JSONObject.quote(addr)+",method:'extension'}));window.dispatchEvent(new Event('asentum#initialized'));window.dispatchEvent(new CustomEvent('asentum:accountsChanged',{detail:{address:"+JSONObject.quote(addr)+"}}));location.reload();}catch(e){console.error('ASENDEX compat',e);}})();";
+        dappWebView.evaluateJavascript(js,null);
+        Toast.makeText(this,"dApp conectado como extensão Asentum",Toast.LENGTH_SHORT).show();
+    }
 
     private void approveConnect(String id,String origin){
         if(!walletUnlocked){returnDapp(id,false,error("Wallet bloqueada. Desbloqueie o aplicativo primeiro."));return;} if(isOriginAllowed(origin)){returnDapp(id,true,new JSONObjectBuilder().put("address",savedAddress()).build());return;}
