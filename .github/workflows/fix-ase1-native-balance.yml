@@ -1,0 +1,80 @@
+name: Fix ase1 Native ASE Balance
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-ase1-native-balance.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fix-balance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Teach /api/read to convert ase1 to internal 20-byte address
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('api/read.js')
+          s=p.read_text()
+          old="""function normalizeNativeAddress(value) {
+  const a = String(value || '').trim();
+  // Canonicalize EVM-style hex wallet representations before native-balance
+  // reads so extension output is handled consistently. Preserve ase1... as-is.
+  return /^0x[0-9a-fA-F]{40}$/.test(a) ? a.toLowerCase() : a;
+}
+"""
+          new="""const ASE_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+function aseConvertBits(data, fromBits, toBits, pad) {
+  let acc = 0, bits = 0; const ret = [], maxv = (1 << toBits) - 1, maxAcc = (1 << (fromBits + toBits - 1)) - 1;
+  for (const value of data) {
+    if (value < 0 || (value >> fromBits)) throw new Error('invalid Asentum address');
+    acc = ((acc << fromBits) | value) & maxAcc; bits += fromBits;
+    while (bits >= toBits) { bits -= toBits; ret.push((acc >> bits) & maxv); }
+  }
+  if (pad) { if (bits) ret.push((acc << (toBits - bits)) & maxv); }
+  else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) throw new Error('invalid Asentum address');
+  return Uint8Array.from(ret);
+}
+function ase1ToHex(value) {
+  const low = String(value || '').trim().toLowerCase();
+  if (!low.startsWith('ase1')) throw new Error('invalid ase1 address');
+  const body = low.slice(low.lastIndexOf('1') + 1);
+  if (body.length < 7) throw new Error('invalid ase1 address');
+  const vals = [...body.slice(0, -6)].map((c) => ASE_CHARSET.indexOf(c));
+  if (vals.some((v) => v < 0)) throw new Error('invalid ase1 address');
+  const bytes = aseConvertBits(vals, 5, 8, false);
+  if (bytes.length !== 20) throw new Error('invalid ase1 address');
+  return '0x' + [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+function normalizeNativeAddress(value) {
+  const a = String(value || '').trim();
+  if (/^0x[0-9a-fA-F]{40}$/.test(a)) return a.toLowerCase();
+  if (/^ase1[02-9ac-hj-np-z]+$/i.test(a)) return ase1ToHex(a);
+  return a;
+}
+"""
+          if old not in s:
+              if 'function ase1ToHex(value)' in s:
+                  print('ase1 balance normalization already applied')
+              else:
+                  raise SystemExit('normalizeNativeAddress target not found')
+          else:
+              p.write_text(s.replace(old,new,1))
+              print('ase1 native balance normalization applied')
+          PY
+      - name: Commit API fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add api/read.js
+          if git diff --cached --quiet; then
+            echo 'No API changes required.'
+          else
+            git commit -m 'api: support ase1 addresses for native ASE balance'
+            git push origin main
+          fi
