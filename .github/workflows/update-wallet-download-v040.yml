@@ -1,0 +1,44 @@
+name: Update ASENDEX Wallet Download v0.4.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update-wallet-download-v040.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Point all Wallet APK links to 0.4.0
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('public/index.html')
+          s = p.read_text()
+          import re
+          url = 'https://github.com/michaeljohnnysilva9-lgtm/ASENDEX/releases/download/asendex-wallet-mobile-v0.4.0-beta/ASENDEX-Wallet-Mobile-0.4.0-beta.apk'
+          s = re.sub(r'https://github\.com/michaeljohnnysilva9-lgtm/ASENDEX/releases/download/asendex-wallet-mobile-v0\.[0-9]+\.[0-9]+-beta/ASENDEX-Wallet-Mobile-0\.[0-9]+\.[0-9]+-beta\.apk', url, s)
+          s = re.sub(r'Download Android APK · v0\.[0-9]+(?:\.[0-9]+)?', 'Download Android APK · v0.4.0', s)
+          p.write_text(s)
+          assert url in s
+          print('ASENDEX web now points to Wallet Mobile 0.4.0')
+          PY
+      - name: Commit updated web download
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/index.html
+          if git diff --cached --quiet; then
+            echo 'No changes required'
+          else
+            git commit -m 'web: download ASENDEX Wallet Mobile 0.4.0'
+            git push origin main
+          fi
