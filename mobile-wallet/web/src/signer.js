@@ -17,6 +17,71 @@ function normalizedHex(hex) { return '0x' + String(hex || '').trim().replace(/\s
 function bytesToB64(bytes) { let s = ''; for (const b of bytes) s += String.fromCharCode(b); return btoa(s); }
 function b64ToBytes(s) { const bin = atob(s); const out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; }
 
+// Native Asentum address representation. The SDK currently signs using the
+// equivalent 20-byte 0x form internally; the wallet UI/provider exposes ase1.
+const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
+const BECH32_GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
+function convertBits(data, fromBits, toBits, pad) {
+  let acc = 0, bits = 0; const ret = [], maxv = (1 << toBits) - 1, maxAcc = (1 << (fromBits + toBits - 1)) - 1;
+  for (const value of data) {
+    if (value < 0 || (value >> fromBits)) throw new Error('Endereço Asentum inválido');
+    acc = ((acc << fromBits) | value) & maxAcc; bits += fromBits;
+    while (bits >= toBits) { bits -= toBits; ret.push((acc >> bits) & maxv); }
+  }
+  if (pad) { if (bits) ret.push((acc << (toBits - bits)) & maxv); }
+  else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) throw new Error('Endereço Asentum inválido');
+  return Uint8Array.from(ret);
+}
+function bech32Polymod(values) {
+  let chk = 1;
+  for (const v of values) {
+    const top = chk >>> 25;
+    chk = ((chk & 0x1ffffff) << 5) ^ v;
+    for (let i = 0; i < 5; i++) if ((top >>> i) & 1) chk ^= BECH32_GEN[i];
+  }
+  return chk;
+}
+function bech32HrpExpand(hrp) {
+  const ret = [];
+  for (let i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) >>> 5);
+  ret.push(0);
+  for (let i = 0; i < hrp.length; i++) ret.push(hrp.charCodeAt(i) & 31);
+  return ret;
+}
+function bech32Checksum(hrp, data) {
+  const values = bech32HrpExpand(hrp).concat(Array.from(data)).concat([0,0,0,0,0,0]);
+  const mod = bech32Polymod(values) ^ 1;
+  const ret = [];
+  for (let p = 0; p < 6; p++) ret.push((mod >>> (5 * (5 - p))) & 31);
+  return ret;
+}
+function hexToAse1(addr) {
+  const s = String(addr || '').trim();
+  if (/^ase1[02-9ac-hj-np-z]+$/i.test(s)) return s.toLowerCase();
+  const clean = s.replace(/^0x/i, '');
+  if (!/^[0-9a-fA-F]{40}$/.test(clean)) throw new Error('Endereço Asentum deve conter 20 bytes');
+  const bytes = [];
+  for (let i = 0; i < clean.length; i += 2) bytes.push(parseInt(clean.slice(i, i + 2), 16));
+  const data = convertBits(bytes, 8, 5, true);
+  const combined = Array.from(data).concat(bech32Checksum('ase', data));
+  return 'ase1' + combined.map(c => CHARSET[c]).join('');
+}
+function aseToHex(addr) {
+  const s = String(addr || '').trim();
+  if (/^0x[0-9a-fA-F]{40}$/.test(s)) return s;
+  const low = s.toLowerCase();
+  if (!low.startsWith('ase1') || (s !== low && s !== s.toUpperCase())) throw new Error('Endereço de destino inválido');
+  const pos = low.lastIndexOf('1');
+  const body = low.slice(pos + 1);
+  if (body.length < 7) throw new Error('Endereço Asentum inválido');
+  const vals = [...body.slice(0, -6)].map(c => CHARSET.indexOf(c));
+  if (vals.some(v => v < 0)) throw new Error('Endereço Asentum inválido');
+  const bytes = convertBits(vals, 5, 8, false);
+  if (bytes.length !== 20) throw new Error('Endereço Asentum não contém 20 bytes');
+  return '0x' + [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function publicAddress(w = requireWallet()) { return hexToAse1(w.address); }
+
 async function deriveKey(password, salt) {
   if (!password || password.length < 8) throw new Error('Use uma senha com pelo menos 8 caracteres');
   const base = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
@@ -47,44 +112,19 @@ async function saveAndUnlock(data, password) {
   const encrypted = await encryptVault(data, password);
   SignerNative.saveVault(encrypted);
   wallet = walletFromData(data);
-  SignerNative.saveAddress(wallet.address);
-  return { address: wallet.address };
+  const address = publicAddress(wallet);
+  SignerNative.saveAddress(address);
+  return { address };
 }
 async function unlock(password) {
   const data = await decryptVault(SignerNative.loadVault(), password);
   wallet = walletFromData(data);
-  SignerNative.saveAddress(wallet.address);
-  return { address: wallet.address };
+  const address = publicAddress(wallet);
+  SignerNative.saveAddress(address);
+  return { address };
 }
 function requireWallet() { if (!wallet) throw new Error('Carteira bloqueada'); return wallet; }
 
-// Asentum SDK signs 0x20-byte destinations. Accept the ase1... user format too.
-const CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
-function convertBits(data, fromBits, toBits, pad) {
-  let acc = 0, bits = 0; const ret = [], maxv = (1 << toBits) - 1, maxAcc = (1 << (fromBits + toBits - 1)) - 1;
-  for (const value of data) {
-    if (value < 0 || (value >> fromBits)) throw new Error('Endereço Asentum inválido');
-    acc = ((acc << fromBits) | value) & maxAcc; bits += fromBits;
-    while (bits >= toBits) { bits -= toBits; ret.push((acc >> bits) & maxv); }
-  }
-  if (pad) { if (bits) ret.push((acc << (toBits - bits)) & maxv); }
-  else if (bits >= fromBits || ((acc << (toBits - bits)) & maxv)) throw new Error('Endereço Asentum inválido');
-  return Uint8Array.from(ret);
-}
-function aseToHex(addr) {
-  const s = String(addr || '').trim();
-  if (/^0x[0-9a-fA-F]{40}$/.test(s)) return s;
-  const low = s.toLowerCase();
-  if (!low.startsWith('ase1') || (s !== low && s !== s.toUpperCase())) throw new Error('Endereço de destino inválido');
-  const pos = low.lastIndexOf('1');
-  const body = low.slice(pos + 1);
-  if (body.length < 7) throw new Error('Endereço Asentum inválido');
-  const vals = [...body.slice(0, -6)].map(c => CHARSET.indexOf(c));
-  if (vals.some(v => v < 0)) throw new Error('Endereço Asentum inválido');
-  const bytes = convertBits(vals, 5, 8, false);
-  if (bytes.length !== 20) throw new Error('Endereço Asentum não contém 20 bytes');
-  return '0x' + [...bytes].map(b => b.toString(16).padStart(2, '0')).join('');
-}
 function amountForSdk(p) {
   if (p.amountAse != null) return String(p.amountAse).trim();
   const a = String(p.amount ?? '').trim();
@@ -102,7 +142,7 @@ async function state() {
   const w = requireWallet();
   let balance = '0';
   try { balance = formatAse(await w.getBalance()); } catch { balance = '—'; }
-  return { address: w.address, balance, rpc: RPC };
+  return { address: publicAddress(w), balance, rpc: RPC };
 }
 async function invoke(method, p = {}) {
   switch (method) {
@@ -131,8 +171,8 @@ async function invoke(method, p = {}) {
     case 'unlock': return unlock(p.password);
     case 'lock': wallet = null; return { locked: true };
     case 'state': return state();
-    case 'getAddress': return { address: requireWallet().address };
-    case 'getBalance': { const raw = await requireWallet().getBalance(); return { balance: formatAse(raw), balanceWei: raw.toString(), address: requireWallet().address }; }
+    case 'getAddress': return { address: publicAddress() };
+    case 'getBalance': { const w = requireWallet(); const raw = await w.getBalance(); return { balance: formatAse(raw), balanceWei: raw.toString(), address: publicAddress(w) }; }
     case 'sendTransfer': {
       const tx = await requireWallet().sendTransfer({ to: aseToHex(p.to), amount: amountForSdk(p) });
       return { txHash: tx.hash };
