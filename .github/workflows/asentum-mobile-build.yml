@@ -21,8 +21,10 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+      - name: Apply ASENDEX Wallet 0.4 integration patch
+        run: python3 mobile-wallet/scripts/patch_v040.py
       - name: Stamp mobile browser version
-        run: sed -i 's#0.3.1#0.3.3#g; s#0.3.2#0.3.3#g' mobile-wallet/app/src/main/java/com/asentum/wallet/MainActivity.java
+        run: sed -i 's#0.3.1#0.4.0#g; s#0.3.2#0.4.0#g; s#0.3.3#0.4.0#g' mobile-wallet/app/src/main/java/com/asentum/wallet/MainActivity.java
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -48,24 +50,24 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p artifact
-          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.3.3-beta.apk
-          sha256sum artifact/ASENDEX-Wallet-Mobile-0.3.3-beta.apk
+          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.4.0-beta.apk
+          sha256sum artifact/ASENDEX-Wallet-Mobile-0.4.0-beta.apk
       - uses: actions/upload-artifact@v4
         with:
           name: asendex-wallet-mobile-android
-          path: artifact/ASENDEX-Wallet-Mobile-0.3.3-beta.apk
+          path: artifact/ASENDEX-Wallet-Mobile-0.4.0-beta.apk
           if-no-files-found: error
           retention-days: 30
       - name: Publish permanent beta APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG='asendex-wallet-mobile-v0.3.3-beta'
-          APK='artifact/ASENDEX-Wallet-Mobile-0.3.3-beta.apk'
+          TAG='asendex-wallet-mobile-v0.4.0-beta'
+          APK='artifact/ASENDEX-Wallet-Mobile-0.4.0-beta.apk'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
           else
             gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --prerelease \
-              --title 'ASENDEX Wallet Mobile 0.3.3 Beta · Token Balance Fix' \
-              --notes 'Fixes token balances in the mobile portfolio by normalizing native ase1 Bech32 wallet addresses to the equivalent 20-byte 0x form when passing address arguments to token contracts. AURA, ORB, PULSE, ZEPH, NOVA and other discovered/custom tokens can now resolve balanceOf correctly while the UI continues to display the native ase1 address. Also applies the same compatibility normalization to dApp contract reads/writes routed through the wallet provider. Includes extension compatibility, biometrics, native swap, token search, Web3 browser and Aurora Premium UI.'
+              --title 'ASENDEX Wallet Mobile 0.4.0 Beta · Wallet Handoff + Liquidity' \
+              --notes 'Adds Android wallet handoff for MetaMask, OKX and WalletConnect deep links emitted by dApps; ASENDEX deep-link invocation; auto-connected native ASENDEX swap using the already-unlocked local Asentum wallet; Create Pool / Add Liquidity entry point routed to the official Auras Pools interface with the ASENDEX Asentum provider available; native ase1 address support, biometrics, token discovery/search and Aurora Premium UI. External wallets are not presented as native Asentum signers unless they expose compatible Asentum support.'
           fi
