@@ -1,0 +1,43 @@
+name: Update ASENDEX Wallet Download v0.4.8
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/update-wallet-download-v048.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-download:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Point Wallet APK links to 0.4.8
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ['public/index.html','index.html']:
+              p=Path(name)
+              if not p.exists():
+                  continue
+              s=p.read_text()
+              for old in ['0.4.7','0.4.6','0.4.5','0.4.4']:
+                  s=s.replace(f'asendex-wallet-mobile-v{old}-beta/ASENDEX-Wallet-Mobile-{old}-beta.apk','asendex-wallet-mobile-v0.4.8-beta/ASENDEX-Wallet-Mobile-0.4.8-beta.apk')
+                  s=s.replace(f'Download Android APK · v{old}','Download Android APK · v0.4.8')
+              p.write_text(s)
+          PY
+      - name: Commit updated web download
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add public/index.html 2>/dev/null || true
+          [ -f index.html ] && git add index.html || true
+          if git diff --cached --quiet; then
+            echo 'No download links required an update.'
+          else
+            git commit -m 'web: update ASENDEX Wallet download to 0.4.8'
+            git push origin main
+          fi
