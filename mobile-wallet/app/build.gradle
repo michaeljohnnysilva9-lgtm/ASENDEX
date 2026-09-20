@@ -10,8 +10,8 @@ android {
         applicationId 'com.asentum.wallet'
         minSdk 26
         targetSdk 35
-        versionCode 10
-        versionName '0.4.4-beta'
+        versionCode 11
+        versionName '0.4.5-beta'
     }
 
     buildTypes {
