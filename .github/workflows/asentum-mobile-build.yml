@@ -35,8 +35,10 @@ jobs:
         run: python3 mobile-wallet/scripts/patch_v045.py
       - name: Add professional terminal FIT and landscape mode
         run: python3 mobile-wallet/scripts/patch_v046.py
+      - name: Normalize ase1 addresses in dApp token balance reads
+        run: python3 mobile-wallet/scripts/patch_v047.py
       - name: Stamp mobile browser version
-        run: sed -i 's#0.3.1#0.4.6#g; s#0.3.2#0.4.6#g; s#0.3.3#0.4.6#g; s#0.4.0#0.4.6#g; s#0.4.1#0.4.6#g; s#0.4.2#0.4.6#g; s#0.4.3#0.4.6#g; s#0.4.4#0.4.6#g; s#0.4.5#0.4.6#g' mobile-wallet/app/src/main/java/com/asentum/wallet/MainActivity.java
+        run: sed -i 's#0.3.1#0.4.7#g; s#0.3.2#0.4.7#g; s#0.3.3#0.4.7#g; s#0.4.0#0.4.7#g; s#0.4.1#0.4.7#g; s#0.4.2#0.4.7#g; s#0.4.3#0.4.7#g; s#0.4.4#0.4.7#g; s#0.4.5#0.4.7#g; s#0.4.6#0.4.7#g' mobile-wallet/app/src/main/java/com/asentum/wallet/MainActivity.java
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -62,24 +64,24 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p artifact
-          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.4.6-beta.apk
-          sha256sum artifact/ASENDEX-Wallet-Mobile-0.4.6-beta.apk
+          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.4.7-beta.apk
+          sha256sum artifact/ASENDEX-Wallet-Mobile-0.4.7-beta.apk
       - uses: actions/upload-artifact@v4
         with:
           name: asendex-wallet-mobile-android
-          path: artifact/ASENDEX-Wallet-Mobile-0.4.6-beta.apk
+          path: artifact/ASENDEX-Wallet-Mobile-0.4.7-beta.apk
           if-no-files-found: error
           retention-days: 30
       - name: Publish permanent beta APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG='asendex-wallet-mobile-v0.4.6-beta'
-          APK='artifact/ASENDEX-Wallet-Mobile-0.4.6-beta.apk'
+          TAG='asendex-wallet-mobile-v0.4.7-beta'
+          APK='artifact/ASENDEX-Wallet-Mobile-0.4.7-beta.apk'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
           else
             gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --prerelease \
-              --title 'ASENDEX Wallet Mobile 0.4.6 Beta · Professional Terminal Fit' \
-              --notes 'Professional wide-terminal rendering for Auras Finance. Rewrites the Auras viewport only inside the ASENDEX dApp browser to a desktop terminal width, measures the real rendered content, calculates the correct FIT scale for the device, and reapplies it after dynamic layout changes. Adds FIT/100% toggle, dedicated landscape mode without recreating the Activity or losing the WebView/provider session, pinch-to-zoom and horizontal pan. Keeps the resilient Auras market-data bridge, native Asentum Connect, native ASE balance fix, persistent session, biometrics, swap, token search, wallet handoff and Liquidity/Pools.'
+              --title 'ASENDEX Wallet Mobile 0.4.7 Beta · dApp Token Balance Fix' \
+              --notes 'Fixes ERC-20-style token balances inside Auras Finance and other Asentum dApps. A document-start compatibility layer normalizes ase1 wallet addresses to the equivalent 20-byte 0x address only in public POST /view contract-read arguments such as balanceOf and allowance. Native ASE display, public ase1 identity, signing, private-key isolation, FIT/landscape terminal rendering, Auras market-data bridge, native Connect, persistent session and biometrics remain unchanged.'
           fi
