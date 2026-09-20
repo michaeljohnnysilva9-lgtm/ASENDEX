@@ -95,15 +95,15 @@ if 'ASENTUM_READ_COMPAT_JS=' not in j:
         raise SystemExit('patch target not found: provider constant')
     j = j.replace(anchor, const_line + anchor, 1)
 
-old_install = '    private void installProviderScript(){if(WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))WebViewCompat.addDocumentStartJavaScript(dappWebView,PROVIDER_JS, Collections.singleton("*"));}\n'
-new_install = '    private void installProviderScript(){if(WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)){WebViewCompat.addDocumentStartJavaScript(dappWebView,PROVIDER_JS, Collections.singleton("*"));WebViewCompat.addDocumentStartJavaScript(dappWebView,ASENTUM_READ_COMPAT_JS, Collections.singleton("*"));}}\n'
+old_install = '    private void installProviderScript(){if(WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)){WebViewCompat.addDocumentStartJavaScript(dappWebView,PROVIDER_JS, Collections.singleton("*"));WebViewCompat.addDocumentStartJavaScript(dappWebView,ASENTUM_CONNECT_SHIM_JS, Collections.singleton("*"));}}'
+new_install = '    private void installProviderScript(){if(WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)){WebViewCompat.addDocumentStartJavaScript(dappWebView,PROVIDER_JS, Collections.singleton("*"));WebViewCompat.addDocumentStartJavaScript(dappWebView,ASENTUM_CONNECT_SHIM_JS, Collections.singleton("*"));WebViewCompat.addDocumentStartJavaScript(dappWebView,ASENTUM_READ_COMPAT_JS, Collections.singleton("*"));}}'
 if old_install in j:
     j = j.replace(old_install, new_install, 1)
 elif new_install not in j:
     raise SystemExit('patch target not found: installProviderScript')
 
-old_fallback = 'if(!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT))view.evaluateJavascript(PROVIDER_JS,null);'
-new_fallback = 'if(!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)){view.evaluateJavascript(PROVIDER_JS,null);view.evaluateJavascript(ASENTUM_READ_COMPAT_JS,null);}'
+old_fallback = 'if(!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)){view.evaluateJavascript(PROVIDER_JS,null);view.evaluateJavascript(ASENTUM_CONNECT_SHIM_JS,null);}'
+new_fallback = 'if(!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)){view.evaluateJavascript(PROVIDER_JS,null);view.evaluateJavascript(ASENTUM_CONNECT_SHIM_JS,null);view.evaluateJavascript(ASENTUM_READ_COMPAT_JS,null);}'
 if old_fallback in j:
     j = j.replace(old_fallback, new_fallback, 1)
 elif new_fallback not in j:
