@@ -31,8 +31,10 @@ jobs:
         run: python3 mobile-wallet/scripts/patch_v043.py
       - name: Improve dApp browser compatibility for Auras
         run: python3 mobile-wallet/scripts/patch_v044.py
+      - name: Add resilient Auras network bridge and zoom
+        run: python3 mobile-wallet/scripts/patch_v045.py
       - name: Stamp mobile browser version
-        run: sed -i 's#0.3.1#0.4.4#g; s#0.3.2#0.4.4#g; s#0.3.3#0.4.4#g; s#0.4.0#0.4.4#g; s#0.4.1#0.4.4#g; s#0.4.2#0.4.4#g; s#0.4.3#0.4.4#g' mobile-wallet/app/src/main/java/com/asentum/wallet/MainActivity.java
+        run: sed -i 's#0.3.1#0.4.5#g; s#0.3.2#0.4.5#g; s#0.3.3#0.4.5#g; s#0.4.0#0.4.5#g; s#0.4.1#0.4.5#g; s#0.4.2#0.4.5#g; s#0.4.3#0.4.5#g; s#0.4.4#0.4.5#g' mobile-wallet/app/src/main/java/com/asentum/wallet/MainActivity.java
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -58,24 +60,24 @@ jobs:
       - name: Stage APK
         run: |
           mkdir -p artifact
-          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.4.4-beta.apk
-          sha256sum artifact/ASENDEX-Wallet-Mobile-0.4.4-beta.apk
+          cp mobile-wallet/app/build/outputs/apk/debug/app-debug.apk artifact/ASENDEX-Wallet-Mobile-0.4.5-beta.apk
+          sha256sum artifact/ASENDEX-Wallet-Mobile-0.4.5-beta.apk
       - uses: actions/upload-artifact@v4
         with:
           name: asendex-wallet-mobile-android
-          path: artifact/ASENDEX-Wallet-Mobile-0.4.4-beta.apk
+          path: artifact/ASENDEX-Wallet-Mobile-0.4.5-beta.apk
           if-no-files-found: error
           retention-days: 30
       - name: Publish permanent beta APK release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          TAG='asendex-wallet-mobile-v0.4.4-beta'
-          APK='artifact/ASENDEX-Wallet-Mobile-0.4.4-beta.apk'
+          TAG='asendex-wallet-mobile-v0.4.5-beta'
+          APK='artifact/ASENDEX-Wallet-Mobile-0.4.5-beta.apk'
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" "$APK" --clobber
           else
             gh release create "$TAG" "$APK" --target "$GITHUB_SHA" --prerelease \
-              --title 'ASENDEX Wallet Mobile 0.4.4 Beta · Auras Browser Compatibility' \
-              --notes 'Improves the built-in dApp browser for Auras Finance and modern Web3 sites. Uses a normal mobile Chromium user-agent instead of the Android WebView wv marker, enables cookies and third-party cookies required by some dApps, DOM/database storage, hardware rendering, normal HTTPS navigation, external app/deep-link handoff and visible main-frame load errors. SSL remains strict and mixed HTTP content remains blocked. Includes native Asentum Connect, native ASE balance fix, persistent session, biometrics, swap, token search, wallet handoff and Liquidity/Pools.'
+              --title 'ASENDEX Wallet Mobile 0.4.5 Beta · Resilient Auras Browser' \
+              --notes 'Improves Auras Finance loading inside the ASENDEX dApp browser. Adds pinch-to-zoom, explicit Service Worker network access, WebChrome support, a guarded one-time reload when the Auras market list is stuck, and an HTTPS/CORS compatibility bridge restricted to the official auras.asentum.com indexer host. The bridge only handles public market-data GET/OPTIONS requests and never handles private keys or transaction signing. Keeps strict TLS, blocks mixed HTTP content, and includes native Asentum Connect, native ASE balance fix, persistent session, biometrics, swap, token search, wallet handoff and Liquidity/Pools.'
           fi
