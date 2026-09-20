@@ -2,7 +2,10 @@ import { build } from 'esbuild';
 import { mkdir, copyFile, readFile, writeFile, rm } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-const VERSION = '0.3.3-beta';
+const gradle = await readFile(resolve('../app/build.gradle'), 'utf8');
+const versionMatch = gradle.match(/versionName\s+['\"]([^'\"]+)['\"]/);
+if (!versionMatch) throw new Error('Android versionName not found');
+const VERSION = versionMatch[1];
 const out = resolve('../app/src/main/assets');
 await mkdir(out, { recursive: true });
 const common = { bundle: true, format: 'iife', target: ['chrome100'], minify: true, sourcemap: false, define: { 'process.env.NODE_ENV': '"production"' } };
