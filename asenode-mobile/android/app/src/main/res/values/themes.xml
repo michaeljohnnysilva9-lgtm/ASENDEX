@@ -1,0 +1,11 @@
+<resources>
+    <style name="Theme.Asenode" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorSecondary">@color/accent2</item>
+        <item name="android:windowBackground">@color/bg</item>
+    </style>
+</resources>
