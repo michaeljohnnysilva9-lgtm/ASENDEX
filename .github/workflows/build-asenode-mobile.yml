@@ -4,7 +4,7 @@ on:
   push:
     branches: [ asenode-mobile-android ]
     paths:
-      - 'asenode-mobile-source.b64'
+      - 'asenode-mobile/**'
       - '.github/workflows/build-asenode-mobile.yml'
   workflow_dispatch:
 
@@ -13,11 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Decode Android source
-        run: |
-          base64 -d asenode-mobile-source.b64 > ASENTUM_Operator_Mobile_Source.zip
-          unzip -q ASENTUM_Operator_Mobile_Source.zip
 
       - uses: actions/setup-java@v4
         with:
