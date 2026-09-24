@@ -265,18 +265,36 @@ async function markets() {
 
 async function connect() {
   try {
+    if (wallet) {
+      try {
+        if (typeof window.asentum?.disconnect === 'function') await window.asentum.disconnect();
+      } catch {}
+      wallet = '';
+      allBalances.clear();
+      if ($('wallet')) $('wallet').textContent = '—';
+      if ($('connect')) $('connect').textContent = 'Connect Wallet';
+      if ($('bal')) $('bal').textContent = 'Balance —';
+      if ($('balout')) $('balout').textContent = 'Balance —';
+      renderTokens();
+      renderActivity();
+      updateButton();
+      log('Wallet disconnected.');
+      return;
+    }
     if (!window.asentum) { await new Promise(r => setTimeout(r, 700)); }
     if (!window.asentum) throw new Error('Asentum extension not detected. Open ASENDEX in the same browser profile where the Asentum extension is installed, unlock the extension, then reload this page.');
     const r = await window.asentum.connect();
     wallet = r?.address || await window.asentum.getAddress?.() || '';
+    if (!wallet) throw new Error('Wallet did not return an address.');
     if ($('wallet')) $('wallet').textContent = short(wallet);
-    if ($('connect')) $('connect').textContent = 'Connected';
+    if ($('connect')) $('connect').textContent = 'Disconnect Wallet';
     await refreshAllBalances();
     await balances();
     renderTokens();
     renderActivity();
     await refreshActivity();
     updateButton();
+    log('Wallet connected: ' + short(wallet));
   } catch (e) {
     log(`Connect failed: ${e.message}`);
   }
