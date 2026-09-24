@@ -10,80 +10,111 @@
     return (BigInt(whole)*10n**BigInt(decimals)+BigInt((fraction+'0'.repeat(decimals)).slice(0,decimals)||'0')).toString();
   }
 
-  // Current Asentum SDK documentation deploys plain top-level JavaScript
-  // functions as contract source. Keep this deliberately simple/canonical.
+  // Asentum VM evaluates the source and expects the LAST expression to return
+  // the contract method object. This matches the canonical Asentum examples:
+  // const PREFIX='...'; ({ init(args){...}, balanceOf(a){...}, ... });
   function contractSource(){
     return `
-function init(name, symbol, decimals, totalSupply, deployer) {
-  assert(!storage.get('initialized'), 'already initialized');
-  const owner = String(deployer).toLowerCase();
-  storage.set('initialized', '1');
-  storage.set('name', String(name));
-  storage.set('symbol', String(symbol));
-  storage.set('decimals', String(decimals));
-  storage.set('totalSupply', String(totalSupply));
-  storage.set('balance:' + owner, String(totalSupply));
-  emit('Transfer', { from: null, to: owner, value: String(totalSupply) });
-  emit('Deployed', { name: String(name), symbol: String(symbol), totalSupply: String(totalSupply) });
-  return true;
-}
+const BALANCE_PREFIX = 'balance:';
+const ALLOWANCE_PREFIX = 'allowance:';
 
-function name() { return storage.get('name') || ''; }
-function symbol() { return storage.get('symbol') || ''; }
-function decimals() { return storage.get('decimals') || '18'; }
-function totalSupply() { return storage.get('totalSupply') || '0'; }
+({
+  init(args) {
+    assert(!storage.get('initialized'), 'already initialized');
+    assert(args && args.owner, 'owner required');
+    const owner = String(args.owner).toLowerCase();
+    const supply = String(args.totalSupply || '0');
+    assert(BigInt(supply) > 0n, 'totalSupply must be positive');
 
-function balanceOf(account) {
-  return storage.get('balance:' + String(account).toLowerCase()) || '0';
-}
+    storage.set('initialized', '1');
+    storage.set('name', String(args.name || 'ASENDEX'));
+    storage.set('symbol', String(args.symbol || 'ASDX'));
+    storage.set('decimals', String(args.decimals ?? '18'));
+    storage.set('totalSupply', supply);
+    storage.set(BALANCE_PREFIX + owner, supply);
 
-function allowance(owner, spender) {
-  return storage.get('allowance:' + String(owner).toLowerCase() + ':' + String(spender).toLowerCase()) || '0';
-}
+    emit('Transfer', { from: null, to: owner, value: supply });
+    return true;
+  },
 
-function approve(spender, amount) {
-  const owner = String(msg.sender).toLowerCase();
-  const target = String(spender).toLowerCase();
-  const value = BigInt(String(amount));
-  assert(value >= 0n, 'invalid amount');
-  storage.set('allowance:' + owner + ':' + target, String(value));
-  emit('Approval', { owner, spender: target, value: String(value) });
-  return true;
-}
+  name() {
+    return storage.get('name') || '';
+  },
 
-function transfer(to, amount) {
-  const from = String(msg.sender).toLowerCase();
-  const target = String(to).toLowerCase();
-  const value = BigInt(String(amount));
-  assert(value > 0n, 'amount must be positive');
-  const fromBalance = BigInt(storage.get('balance:' + from) || '0');
-  assert(fromBalance >= value, 'insufficient balance');
-  const toBalance = BigInt(storage.get('balance:' + target) || '0');
-  storage.set('balance:' + from, String(fromBalance - value));
-  storage.set('balance:' + target, String(toBalance + value));
-  emit('Transfer', { from, to: target, value: String(value) });
-  return true;
-}
+  symbol() {
+    return storage.get('symbol') || '';
+  },
 
-function transferFrom(from, to, amount) {
-  const owner = String(from).toLowerCase();
-  const spender = String(msg.sender).toLowerCase();
-  const target = String(to).toLowerCase();
-  const value = BigInt(String(amount));
-  assert(value > 0n, 'amount must be positive');
-  const key = 'allowance:' + owner + ':' + spender;
-  const approved = BigInt(storage.get(key) || '0');
-  const balance = BigInt(storage.get('balance:' + owner) || '0');
-  assert(approved >= value, 'insufficient allowance');
-  assert(balance >= value, 'insufficient balance');
-  const targetBalance = BigInt(storage.get('balance:' + target) || '0');
-  storage.set(key, String(approved - value));
-  storage.set('balance:' + owner, String(balance - value));
-  storage.set('balance:' + target, String(targetBalance + value));
-  emit('Approval', { owner, spender, value: String(approved - value) });
-  emit('Transfer', { from: owner, to: target, value: String(value) });
-  return true;
-}
+  decimals() {
+    return storage.get('decimals') || '18';
+  },
+
+  totalSupply() {
+    return storage.get('totalSupply') || '0';
+  },
+
+  balanceOf(address) {
+    return storage.get(BALANCE_PREFIX + String(address).toLowerCase()) || '0';
+  },
+
+  allowance(owner, spender) {
+    const key = ALLOWANCE_PREFIX + String(owner).toLowerCase() + ':' + String(spender).toLowerCase();
+    return storage.get(key) || '0';
+  },
+
+  approve(spender, amount) {
+    const owner = String(msg.sender).toLowerCase();
+    const target = String(spender).toLowerCase();
+    const value = BigInt(String(amount));
+    assert(value >= 0n, 'invalid amount');
+    storage.set(ALLOWANCE_PREFIX + owner + ':' + target, String(value));
+    emit('Approval', { owner, spender: target, value: String(value) });
+    return true;
+  },
+
+  transfer(to, amount) {
+    const from = String(msg.sender).toLowerCase();
+    const target = String(to).toLowerCase();
+    const value = BigInt(String(amount));
+    assert(value > 0n, 'amount must be positive');
+
+    const fromKey = BALANCE_PREFIX + from;
+    const toKey = BALANCE_PREFIX + target;
+    const fromBalance = BigInt(storage.get(fromKey) || '0');
+    assert(fromBalance >= value, 'insufficient balance');
+
+    const toBalance = BigInt(storage.get(toKey) || '0');
+    storage.set(fromKey, String(fromBalance - value));
+    storage.set(toKey, String(toBalance + value));
+    emit('Transfer', { from, to: target, value: String(value) });
+    return true;
+  },
+
+  transferFrom(from, to, amount) {
+    const owner = String(from).toLowerCase();
+    const spender = String(msg.sender).toLowerCase();
+    const target = String(to).toLowerCase();
+    const value = BigInt(String(amount));
+    assert(value > 0n, 'amount must be positive');
+
+    const allowanceKey = ALLOWANCE_PREFIX + owner + ':' + spender;
+    const approved = BigInt(storage.get(allowanceKey) || '0');
+    assert(approved >= value, 'insufficient allowance');
+
+    const fromKey = BALANCE_PREFIX + owner;
+    const toKey = BALANCE_PREFIX + target;
+    const fromBalance = BigInt(storage.get(fromKey) || '0');
+    assert(fromBalance >= value, 'insufficient balance');
+    const toBalance = BigInt(storage.get(toKey) || '0');
+
+    storage.set(allowanceKey, String(approved - value));
+    storage.set(fromKey, String(fromBalance - value));
+    storage.set(toKey, String(toBalance + value));
+    emit('Approval', { owner, spender, value: String(approved - value) });
+    emit('Transfer', { from: owner, to: target, value: String(value) });
+    return true;
+  }
+});
 `;
   }
 
@@ -132,31 +163,36 @@ function transferFrom(from, to, amount) {
       if(/^0x[0-9a-fA-F]{40}$/.test(a) && !out.some(x=>x.toLowerCase()===a.toLowerCase())) out.push(a);
     };
     const inspect=(obj,depth=0)=>{
-      if(!obj||typeof obj!=='object'||depth>3) return;
+      if(!obj||typeof obj!=='object'||depth>4) return;
       for(const [k,v] of Object.entries(obj)){
         if(/contractAddress|createdAddress|createdContract|contract/i.test(k)) add(v);
         if(v&&typeof v==='object') inspect(v,depth+1);
       }
     };
-    add(receipt?.contractAddress); add(receipt?.createdAddress); add(receipt?.createdContract); add(receipt?.contract);
-    add(walletResult?.contractAddress); add(walletResult?.address);
-    inspect(receipt); inspect(walletResult);
+    add(receipt?.contractAddress);
+    add(receipt?.createdAddress);
+    add(receipt?.createdContract);
+    add(receipt?.contract);
+    add(walletResult?.contractAddress);
+    add(walletResult?.address);
+    inspect(receipt);
+    inspect(walletResult);
     return out;
   }
 
   async function waitForContract(candidates,logEl){
     if(!candidates.length) throw Error('Deploy confirmado, mas wallet/receipt não retornaram endereço de contrato.');
     let last='';
-    // A receipt can become visible before a different RPC node can execute the new contract.
-    // Retry for ~60s before classifying the deploy as invalid.
     for(let attempt=1;attempt<=40;attempt++){
       for(const address of candidates){
         try{
           await rpcView(address,'name',[]);
           return address;
-        }catch(e){ last=e?.message||String(e); }
+        }catch(e){
+          last=e?.message||String(e);
+        }
       }
-      if(logEl) logEl.textContent='DEPLOY confirmado · aguardando propagação on-chain '+attempt+'/40…';
+      if(logEl) logEl.textContent='DEPLOY confirmado · aguardando contrato na RPC '+attempt+'/40…';
       await sleep(1500);
     }
     throw Error('Nenhum endereço do deploy foi reconhecido como contrato após 60s. Última resposta RPC: '+last);
@@ -193,6 +229,7 @@ function transferFrom(from, to, amount) {
     const result=$('tokenCreatorResult');
     button.disabled=true;
     result.style.display='none';
+    let deployHash='';
 
     try{
       if(!window.asentum) await sleep(500);
@@ -214,19 +251,26 @@ function transferFrom(from, to, amount) {
 
       log.textContent='1/2 · APROVE O DEPLOY NA WALLET';
       const deploy=await window.asentum.deployContract({source:contractSource()});
-      const deployHash=deploy?.txHash || deploy?.hash;
+      deployHash=deploy?.txHash || deploy?.hash || '';
       if(!deployHash) throw Error('Wallet não retornou TX do deploy.');
 
-      log.textContent='DEPLOY enviado · aguardando receipt…';
+      log.textContent='DEPLOY enviado · '+deployHash+' · aguardando receipt…';
       const deployReceipt=await waitReceipt(deployHash);
       const candidates=collectAddresses(deploy,deployReceipt);
       const address=await waitForContract(candidates,log);
 
       log.textContent='2/2 · CONTRATO EXISTE ON-CHAIN ✓ · APROVE O INIT';
+      const initArgs={
+        name:tokenName,
+        symbol:tokenSymbol,
+        decimals:String(decimalsValue),
+        totalSupply:totalUnits,
+        owner:String(wallet).toLowerCase()
+      };
       const init=await window.asentum.callContract({
         to:address,
         method:'init',
-        args:[tokenName,tokenSymbol,String(decimalsValue),totalUnits,String(wallet)],
+        args:[initArgs],
         value:'0'
       });
       const initHash=init?.txHash || init?.hash || init;
@@ -250,7 +294,8 @@ function transferFrom(from, to, amount) {
         $('copyNewToken').textContent='Copiado ✓';
       };
     }catch(e){
-      log.textContent='Criação interrompida: '+(e?.message||String(e))+' · NÃO USE NA AURAS.';
+      const tx=deployHash?' · Deploy TX: '+deployHash:'';
+      log.textContent='Criação interrompida: '+(e?.message||String(e))+tx+' · NÃO USE NA AURAS.';
     }finally{
       button.disabled=false;
     }
