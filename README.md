@@ -143,3 +143,6 @@ Issues and pull requests are welcome for technical corrections and improvements.
 ASENDEX is independently developed by a community participant. References to Asentum, ASE, Auras and related infrastructure identify the network and protocols being tested and do not imply partnership, sponsorship, endorsement or official status.
 
 Testnet software is inherently experimental. Nothing in this repository is financial advice.
+
+
+<!-- deploy-trigger: 2026-09-24 ASDX token creator -->
